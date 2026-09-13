@@ -1,7 +1,8 @@
 {
   "name": "سامانه هوشمند مانیتورینگ رسانه شرکت ملی پخش فرآورده‌های نفتی",
-  "description": "اتاق خبر هوشمند، پایش اخبار مناطق ۳۷گانه، تحلیل راهبردی و موتور تولید محتوای چندرسانه‌ای شرکت ملی پخش فرآورده‌های نفتی ایران",
+  "description": "سامانه جامع رصد رسانه‌ای، خزش خودکار اخبار و تحلیل هوشمند داده‌های روابط عمومی شرکت ملی پخش فرآورده‌های نفتی ایران",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
-

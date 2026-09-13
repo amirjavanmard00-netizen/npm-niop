@@ -1,0 +1,172 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Region {
+  id          String    @id
+  name        String
+  code        String    @unique
+  province    String
+  enabled     Boolean   @default(true)
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  sources     Source[]
+  articles    Article[]
+}
+
+model Source {
+  id               String          @id
+  regionId         String?
+  name             String
+  url              String?
+  rssUrl           String?
+  type             String          @default("rss") // rss, html, api
+  enabled          Boolean         @default(true)
+  priority         Int             @default(1)
+  category         String          @default("official") // official, domestic_agency, energy_specialized, international
+  status           String          @default("healthy") // healthy, slow, warning, error, disabled
+  lastFetchedAt    DateTime?
+  lastSuccessAt    DateTime?
+  lastErrorAt      DateTime?
+  articleCount     Int             @default(0)
+  reliability      Int             @default(90)
+  httpStatus       Int?
+  responseTimeMs   Int?
+  lastErrorMessage String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  region           Region?         @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  articles         Article[]
+  collectionRuns   CollectionRun[]
+}
+
+model Article {
+  id            String           @id @default(uuid())
+  title         String
+  originalTitle String?
+  url           String
+  canonicalUrl  String
+  sourceId      String
+  regionId      String?
+  author        String?
+  publishedAt   DateTime         @default(now())
+  discoveredAt  DateTime         @default(now())
+  content       String
+  summary       String
+  imageUrl      String?
+  language      String           @default("fa")
+  hash          String           @unique
+  status        String           @default("new") // new, processed, archived
+  isSeed        Boolean          @default(false)
+  eventId       String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  source        Source           @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  region        Region?          @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  event         Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  analysis      ArticleAnalysis?
+  factChecks    FactCheck[]
+}
+
+model ArticleSource {
+  id           String   @id @default(uuid())
+  articleId    String
+  sourceId     String
+  discoveredAt DateTime @default(now())
+}
+
+model Event {
+  id              String    @id @default(uuid())
+  title           String
+  description     String
+  firstSeenAt     DateTime  @default(now())
+  lastSeenAt      DateTime  @default(now())
+  importanceScore Int       @default(5)
+  articleCount    Int       @default(1)
+  status          String    @default("active") // active, closed, archived
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  articles        Article[]
+  rumors          Rumor[]
+}
+
+model ArticleAnalysis {
+  id                  String   @id @default(uuid())
+  articleId           String   @unique
+  importanceScore     Int      @default(5) // 1 - 10
+  mediaValueScore     Int      @default(5) // 1 - 10
+  publicInterestScore Int      @default(5) // 1 - 10
+  crisisScore         Int      @default(1) // 1 - 10
+  sentiment           String   @default("neutral") // positive, neutral, negative
+  topics              String   @default("[]") // JSON string
+  entities            String   @default("[]") // JSON string
+  keywords            String   @default("[]") // JSON string
+  summary             String
+  isRumorPotential    Boolean  @default(false)
+  analyzedAt          DateTime @default(now())
+  article             Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+}
+
+model Rumor {
+  id             String   @id @default(uuid())
+  title          String
+  description    String
+  firstSeenAt    DateTime @default(now())
+  source         String
+  status         String   @default("potential") // potential, needs_review, confirmed, rejected
+  riskLevel      String   @default("medium") // low, medium, high, critical
+  confidence     Int      @default(50) // 1-100
+  relatedEventId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  relatedEvent   Event?   @relation(fields: [relatedEventId], references: [id], onDelete: SetNull)
+}
+
+model FactCheck {
+  id         String   @id @default(uuid())
+  articleId  String?
+  claim      String
+  status     String   @default("UNVERIFIED") // UNVERIFIED, PENDING_REVIEW, VERIFIED, DISPUTED, FALSE, TRUE
+  confidence Int      @default(50) // 1 - 100
+  evidence   String
+  checkedAt  DateTime @default(now())
+  checkedBy  String?  @default("AI Assisted System")
+  article    Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+}
+
+model CollectionRun {
+  id             String    @id @default(uuid())
+  sourceId       String?
+  startedAt      DateTime  @default(now())
+  finishedAt     DateTime?
+  status         String    @default("running") // running, success, partial, failed
+  fetchedCount   Int       @default(0)
+  newCount       Int       @default(0)
+  duplicateCount Int       @default(0)
+  errorMessage   String?
+  source         Source?   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  level     String   @default("info") // info, warn, error
+  action    String
+  message   String
+  details   String?
+  createdAt DateTime @default(now())
+}

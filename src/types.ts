@@ -99,3 +99,101 @@ export interface VideoSuggestion {
   hook: string;
   summaryScript: string;
 }
+
+export interface DbArticle {
+  id: string;
+  title: string;
+  originalTitle?: string;
+  url: string;
+  canonicalUrl: string;
+  sourceId: string;
+  regionId?: string;
+  author?: string;
+  publishedAt: string;
+  discoveredAt: string;
+  content: string;
+  summary: string;
+  imageUrl?: string;
+  language: string;
+  hash: string;
+  status: string;
+  isSeed: boolean;
+  eventId?: string;
+  source?: {
+    id: string;
+    name: string;
+    category: string;
+    reliability: number;
+  };
+  region?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  analysis?: {
+    importanceScore: number;
+    mediaValueScore: number;
+    publicInterestScore: number;
+    crisisScore: number;
+    sentiment: 'positive' | 'neutral' | 'negative';
+    topics: string;
+    entities: string;
+    keywords: string;
+    summary: string;
+    isRumorPotential?: boolean;
+  };
+  event?: {
+    id: string;
+    title: string;
+    importanceScore: number;
+  };
+}
+
+export interface DbSource {
+  id: string;
+  regionId?: string;
+  name: string;
+  url?: string;
+  rssUrl?: string;
+  type: string;
+  enabled: boolean;
+  priority: number;
+  category: string;
+  status: 'healthy' | 'slow' | 'warning' | 'error' | 'disabled';
+  lastFetchedAt?: string;
+  lastSuccessAt?: string;
+  lastErrorAt?: string;
+  articleCount: number;
+  reliability: number;
+  httpStatus?: number;
+  responseTimeMs?: number;
+  lastErrorMessage?: string;
+  _count?: {
+    articles: number;
+  };
+}
+
+export interface DbStats {
+  totalArticles: number;
+  realArticles: number;
+  seedArticles: number;
+  articlesLast24h: number;
+  activeSources: number;
+  healthySources: number;
+  totalRegions: number;
+  activeEvents: number;
+  totalRumors: number;
+  urgentRumors: number;
+  sentiments: {
+    positive: number;
+    neutral: number;
+    negative: number;
+  };
+  scheduler: {
+    isActive: boolean;
+    isRunning: boolean;
+    intervalMinutes: number;
+    lastRunTime?: string;
+  };
+}
+

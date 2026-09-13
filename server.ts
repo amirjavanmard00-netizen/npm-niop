@@ -3,6 +3,9 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import { apiRouter } from './server/routes';
+import { seedDatabase } from './server/seed';
+import { startScheduler } from './server/scheduler';
 
 dotenv.config();
 
@@ -10,6 +13,9 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: '10mb' }));
+
+// Mount database and media monitoring API routes
+app.use('/api', apiRouter);
 
 // Helper to get GoogleGenAI client
 function getGenAI(): GoogleGenAI | null {
@@ -211,6 +217,13 @@ app.post('/api/ai/generate-package', async (req, res) => {
 
 // Vite middleware / static files
 async function start() {
+  try {
+    await seedDatabase();
+    startScheduler();
+  } catch (err) {
+    console.error('[Server init warning]', err);
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },

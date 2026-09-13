@@ -18,6 +18,12 @@ interface HeaderProps {
   onOpenExportModal: () => void;
   onRefreshData: () => void;
   isRefreshing: boolean;
+  dbStatus?: {
+    totalArticles: number;
+    realArticles: number;
+    isHealthy: boolean;
+    isRunning: boolean;
+  };
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,7 +31,8 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   onOpenExportModal,
   onRefreshData,
-  isRefreshing
+  isRefreshing,
+  dbStatus
 }) => {
   return (
     <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-30 shadow-xl">
@@ -61,14 +68,28 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Quick Metrics & Actions */}
           <div className="flex items-center gap-2.5 self-end md:self-center">
+            {dbStatus && (
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="text-slate-300 font-mono text-[11px]">
+                  SQLite: <strong className="text-amber-400 font-bold">{dbStatus.totalArticles}</strong> خبر
+                </span>
+                {dbStatus.realArticles > 0 && (
+                  <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-1.5 py-0.2 rounded font-bold">
+                    {dbStatus.realArticles} زنده
+                  </span>
+                )}
+              </div>
+            )}
+
             <button
               onClick={onRefreshData}
               disabled={isRefreshing}
               className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition disabled:opacity-50 cursor-pointer"
-              title="به‌روزرسانی و واکشی رصد زنده"
+              title="همگام‌سازی و خزش زنده رسانه‌ها"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">رصد لحظه‌ای</span>
+              <span className="hidden sm:inline">پایش و همگام‌سازی زنده</span>
             </button>
 
             <button
