@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import cors from 'cors';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
@@ -10,7 +11,26 @@ import { startScheduler } from './server/scheduler';
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+// Security Headers for Production
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// CORS configuration for Production
+const allowedOrigins = process.env.CORS_ORIGIN || '*';
+app.use(cors({
+  origin: allowedOrigins === '*' ? true : allowedOrigins.split(',').map(s => s.trim()),
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -23,15 +43,6 @@ function getGenAI(): GoogleGenAI | null {
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
 }
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    timestamp: new Date().toISOString()
-  });
-});
 
 // Professional energy news rewriting endpoint (هرم وارونه)
 app.post('/api/ai/rewrite', async (req, res) => {

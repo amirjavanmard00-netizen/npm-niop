@@ -1,0 +1,199 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Region {
+  id          String    @id
+  name        String
+  code        String    @unique
+  province    String
+  enabled     Boolean   @default(true)
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  sources     Source[]
+  articles    Article[]
+}
+
+model Source {
+  id               String          @id
+  regionId         String?
+  name             String
+  url              String?
+  rssUrl           String?
+  type             String          @default("rss") // rss, html, api
+  enabled          Boolean         @default(true)
+  priority         Int             @default(1)
+  category         String          @default("official") // official, domestic_agency, energy_specialized, international
+  status           String          @default("healthy") // healthy, slow, warning, error, disabled
+  lastFetchedAt    DateTime?
+  lastSuccessAt    DateTime?
+  lastErrorAt      DateTime?
+  articleCount     Int             @default(0)
+  reliability      Int             @default(90)
+  httpStatus       Int?
+  responseTimeMs   Int?
+  lastErrorMessage String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  region           Region?         @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  articles         Article[]
+  collectionRuns   CollectionRun[]
+}
+
+model Article {
+  id            String           @id @default(uuid())
+  title         String
+  originalTitle String?
+  url           String           @unique
+  canonicalUrl  String
+  sourceId      String
+  regionId      String?
+  author        String?
+  publishedAt   DateTime         @default(now())
+  discoveredAt  DateTime         @default(now())
+  content       String
+  summary       String
+  imageUrl      String?
+  language      String           @default("fa")
+  hash          String           @unique
+  status        String           @default("new") // new, processed, archived, flagged
+  isSeed        Boolean          @default(false)
+  eventId       String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  source        Source           @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  region        Region?          @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  event         Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  analysis      ArticleAnalysis?
+  sources       ArticleSource[]
+  factChecks    FactCheck[]
+
+  @@index([publishedAt])
+  @@index([discoveredAt])
+  @@index([sourceId])
+  @@index([regionId])
+  @@index([hash])
+  @@index([isSeed])
+}
+
+model ArticleSource {
+  id        String   @id @default(uuid())
+  articleId String
+  sourceId  String
+  url       String
+  createdAt DateTime @default(now())
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, sourceId])
+}
+
+model Event {
+  id              String    @id @default(uuid())
+  title           String
+  description     String?
+  importanceScore Float     @default(5.0)
+  articleCount    Int       @default(1)
+  firstSeenAt     DateTime  @default(now())
+  lastSeenAt      DateTime  @default(now())
+  status          String    @default("active") // active, resolved, archived
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  articles        Article[]
+  rumors          Rumor[]
+
+  @@index([importanceScore])
+  @@index([lastSeenAt])
+}
+
+model ArticleAnalysis {
+  id                  String   @id @default(uuid())
+  articleId           String   @unique
+  importanceScore     Float    @default(5.0)
+  mediaValueScore     Float    @default(5.0)
+  publicInterestScore Float    @default(5.0)
+  crisisScore         Float    @default(1.0)
+  sentiment           String   @default("neutral") // positive, neutral, negative
+  topics              String   @default("[]") // JSON string
+  entities            String   @default("[]") // JSON string
+  keywords            String   @default("[]") // JSON string
+  summary             String
+  isRumorPotential    Boolean  @default(false)
+  analyzedAt          DateTime @default(now())
+  article             Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([sentiment])
+  @@index([crisisScore])
+}
+
+model Rumor {
+  id             String    @id @default(uuid())
+  eventId        String?
+  claim          String
+  sourceUrl      String?
+  riskLevel      String    @default("medium") // low, medium, high, critical
+  debunkStatus   String    @default("investigating") // investigating, debunked, confirmed, ignored
+  suggestedAction String?
+  firstSeenAt    DateTime  @default(now())
+  lastSeenAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  relatedEvent   Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([riskLevel])
+  @@index([debunkStatus])
+}
+
+model FactCheck {
+  id          String   @id @default(uuid())
+  articleId   String
+  claim       String
+  status      String   @default("FALSE") // TRUE, FALSE, MISLEADING, UNVERIFIED
+  confidence  Int      @default(80)
+  evidence    String
+  checkedAt   DateTime @default(now())
+  checkedBy   String   @default("AI_ASSISTED")
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+}
+
+model CollectionRun {
+  id             String    @id @default(uuid())
+  sourceId       String
+  startedAt      DateTime  @default(now())
+  finishedAt     DateTime?
+  status         String    @default("running") // running, success, failed
+  fetchedCount   Int       @default(0)
+  newCount       Int       @default(0)
+  duplicateCount Int       @default(0)
+  errorMessage   String?
+  source         Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([startedAt])
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  level     String   @default("info") // info, warn, error
+  action    String
+  message   String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([createdAt])
+}

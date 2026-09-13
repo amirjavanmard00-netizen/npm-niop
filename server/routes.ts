@@ -16,6 +16,8 @@ apiRouter.get('/health', async (req, res) => {
     res.json({
       status: 'ok',
       database: 'connected',
+      environment: process.env.NODE_ENV || 'development',
+      uptimeSeconds: Math.floor(process.uptime()),
       stats: {
         articleCount,
         sourceCount,
@@ -26,10 +28,13 @@ apiRouter.get('/health', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    res.status(500).json({
+    res.status(503).json({
       status: 'error',
       database: 'disconnected',
-      error: error?.message || String(error)
+      environment: process.env.NODE_ENV || 'development',
+      uptimeSeconds: Math.floor(process.uptime()),
+      error: error?.message || String(error),
+      timestamp: new Date().toISOString()
     });
   }
 });

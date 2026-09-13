@@ -112,10 +112,16 @@ export default function App() {
       const res = await fetch(`/api/sources/${sourceId}/sync`, { method: 'POST' });
       const data = await res.json();
       await fetchLiveData();
-      setRefreshNotification(`منبع با موفقیت پایش شد (${data?.newCount || 0} خبر جدید).`);
-      setTimeout(() => setRefreshNotification(null), 4000);
-    } catch (err) {
+      if (data?.status === 'failed' || data?.errorMessage || data?.error) {
+        setRefreshNotification(`خطا در ارتباط با منبع: ${data?.errorMessage || data?.details || data?.error || 'عدم دسترسی'}`);
+      } else {
+        setRefreshNotification(`منبع با موفقیت پایش شد (${data?.newCount || 0} خبر جدید).`);
+      }
+      setTimeout(() => setRefreshNotification(null), 5000);
+    } catch (err: any) {
       console.error('Failed to sync source', err);
+      setRefreshNotification(`خطا در اتصال به سرور: ${err?.message || 'خطای ناشناخته'}`);
+      setTimeout(() => setRefreshNotification(null), 5000);
     } finally {
       setIsSyncingSourceId(null);
     }

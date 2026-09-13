@@ -173,13 +173,26 @@ export const SourcesDirectory: React.FC<SourcesDirectoryProps> = ({
                         کند
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[11px] text-rose-400 font-semibold font-mono">
+                      <span className="flex items-center gap-1 text-[11px] text-rose-400 font-semibold font-mono" title={(s as any).lastErrorMessage || 'عدم دسترسی به سرور منبع'}>
                         <AlertCircle className="w-3 h-3 text-rose-400" />
-                        خطا
+                        خطا {(s as any).httpStatus ? `(${ (s as any).httpStatus })` : ''}
                       </span>
                     )}
                   </div>
                 </div>
+
+                {/* Real error banner if unreachable */}
+                {(s as any).status === 'error' && (s as any).lastErrorMessage && (
+                  <div className="mb-2 p-2 rounded-lg bg-rose-950/40 border border-rose-900/60 text-[11px] text-rose-300 flex items-start gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
+                    <div className="overflow-hidden">
+                      <span className="font-bold text-rose-200 block text-[10px]">گزارش خطای منبع:</span>
+                      <p className="line-clamp-2 text-rose-300/90 font-mono text-[10px] dir-ltr text-left">
+                        {(s as any).lastErrorMessage}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-start justify-between gap-2">
                   <div>

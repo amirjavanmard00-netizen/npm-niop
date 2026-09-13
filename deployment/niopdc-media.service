@@ -1,0 +1,19 @@
+[Unit]
+Description=NIOPDC Smart Media Monitoring System Service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/var/www/niopdc-media
+ExecStart=/usr/bin/node /var/www/niopdc-media/dist/server.cjs
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=niopdc-media
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target
