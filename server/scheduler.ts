@@ -36,7 +36,7 @@ export async function triggerManualCollection() {
 export function startScheduler() {
   if (timer) return;
 
-  const intervalMinutes = Math.max(2, parseInt(process.env.NEWS_POLL_INTERVAL_MINUTES || '10', 10));
+  const intervalMinutes = Math.max(2, parseInt(process.env.NEWS_POLL_INTERVAL_MINUTES || '30', 10));
   const ms = intervalMinutes * 60 * 1000;
 
   console.log(`[Scheduler] Starting background media collector (every ${intervalMinutes} minutes)...`);
