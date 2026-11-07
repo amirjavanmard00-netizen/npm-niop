@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma, logSystemEvent } from './db';
 import { runCollectionForSource, runAllSourcesCollection } from './collector/engine';
 import { getSchedulerStatus, triggerManualCollection } from './scheduler';
+import { requireAuth, requireAdmin } from './auth';
 
 export const apiRouter = Router();
 
@@ -16,7 +17,6 @@ apiRouter.get('/health', async (req, res) => {
     res.json({
       status: 'ok',
       database: 'connected',
-      environment: process.env.NODE_ENV || 'development',
       uptimeSeconds: Math.floor(process.uptime()),
       stats: {
         articleCount,
@@ -24,19 +24,24 @@ apiRouter.get('/health', async (req, res) => {
         regionCount
       },
       scheduler,
-      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
     res.status(503).json({
       status: 'error',
       database: 'disconnected',
-      environment: process.env.NODE_ENV || 'development',
       uptimeSeconds: Math.floor(process.uptime()),
-      error: error?.message || String(error),
+      error: 'Health check failed',
       timestamp: new Date().toISOString()
     });
   }
+});
+
+// All application data requires a verified Supabase session. Health remains public.
+apiRouter.use(requireAuth);
+apiRouter.get('/auth/me', (_req, res) => {
+  const user = res.locals.authUser;
+  res.json({ id: user.id, email: user.email, role: user.app_metadata?.role || 'analyst' });
 });
 
 // 2. Comprehensive Dashboard Statistics (Real live aggregation)
@@ -227,7 +232,7 @@ apiRouter.get('/sources', async (req, res) => {
   }
 });
 
-apiRouter.post('/sources', async (req, res) => {
+apiRouter.post('/sources', requireAdmin, async (req, res) => {
   try {
     const { id, name, category, url, rssUrl, type = 'rss', priority = 2, reliability = 90, regionId } = req.body;
     if (!name || !id) {
@@ -257,7 +262,7 @@ apiRouter.post('/sources', async (req, res) => {
   }
 });
 
-apiRouter.patch('/sources/:id', async (req, res) => {
+apiRouter.patch('/sources/:id', requireAdmin, async (req, res) => {
   try {
     const { enabled, priority, rssUrl, url, category, reliability } = req.body;
     const source = await prisma.source.update({
@@ -279,7 +284,7 @@ apiRouter.patch('/sources/:id', async (req, res) => {
 });
 
 // Trigger collection for a specific source
-apiRouter.post('/sources/:id/sync', async (req, res) => {
+apiRouter.post('/sources/:id/sync', requireAdmin, async (req, res) => {
   try {
     const summary = await runCollectionForSource(req.params.id);
     res.json(summary);
@@ -289,7 +294,7 @@ apiRouter.post('/sources/:id/sync', async (req, res) => {
 });
 
 // 6. Manual Collection Sync for all enabled sources
-apiRouter.post('/collector/sync', async (req, res) => {
+apiRouter.post('/collector/sync', requireAdmin, async (req, res) => {
   try {
     const result = await triggerManualCollection();
     res.json(result);
@@ -305,13 +310,20 @@ apiRouter.get('/collector/status', (req, res) => {
 // 7. Regions API (37 operational regions)
 apiRouter.get('/regions', async (req, res) => {
   try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const regions = await prisma.region.findMany({
       include: {
-        _count: { select: { articles: true, sources: true } },
+        _count: {
+          select: {
+            articles: { where: { publishedAt: { gte: sevenDaysAgo } } },
+            sources: true
+          }
+        },
         articles: {
+          where: { publishedAt: { gte: sevenDaysAgo } },
           take: 3,
           orderBy: { publishedAt: 'desc' },
-          select: { id: true, title: true, publishedAt: true, summary: true }
+          select: { id: true, title: true, publishedAt: true, summary: true, url: true }
         }
       },
       orderBy: { name: 'asc' }

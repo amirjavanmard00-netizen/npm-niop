@@ -1,10 +1,12 @@
 datasource db {
   provider = "postgresql"
+  schemas  = ["niopdc_app"]
   url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 model User {
@@ -14,6 +16,7 @@ model User {
   role      String   @default("admin")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@schema("niopdc_app")
 }
 
 model Region {
@@ -27,6 +30,7 @@ model Region {
   updatedAt   DateTime  @updatedAt
   sources     Source[]
   articles    Article[]
+  @@schema("niopdc_app")
 }
 
 model Source {
@@ -53,13 +57,14 @@ model Source {
   region           Region?         @relation(fields: [regionId], references: [id], onDelete: SetNull)
   articles         Article[]
   collectionRuns   CollectionRun[]
+  @@schema("niopdc_app")
 }
 
 model Article {
   id            String           @id @default(uuid())
   title         String
   originalTitle String?
-  url           String           @unique
+  url           String
   canonicalUrl  String
   sourceId      String
   regionId      String?
@@ -71,7 +76,7 @@ model Article {
   imageUrl      String?
   language      String           @default("fa")
   hash          String           @unique
-  status        String           @default("new") // new, processed, archived, flagged
+  status        String           @default("new") // new, processed, archived
   isSeed        Boolean          @default(false)
   eventId       String?
   createdAt     DateTime         @default(now())
@@ -80,53 +85,41 @@ model Article {
   region        Region?          @relation(fields: [regionId], references: [id], onDelete: SetNull)
   event         Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
   analysis      ArticleAnalysis?
-  sources       ArticleSource[]
   factChecks    FactCheck[]
-
-  @@index([publishedAt])
-  @@index([discoveredAt])
-  @@index([sourceId])
-  @@index([regionId])
-  @@index([hash])
-  @@index([isSeed])
+  @@schema("niopdc_app")
 }
 
 model ArticleSource {
-  id        String   @id @default(uuid())
-  articleId String
-  sourceId  String
-  url       String
-  createdAt DateTime @default(now())
-  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@unique([articleId, sourceId])
+  id           String   @id @default(uuid())
+  articleId    String
+  sourceId     String
+  discoveredAt DateTime @default(now())
+  @@schema("niopdc_app")
 }
 
 model Event {
   id              String    @id @default(uuid())
   title           String
-  description     String?
-  importanceScore Float     @default(5.0)
-  articleCount    Int       @default(1)
+  description     String
   firstSeenAt     DateTime  @default(now())
   lastSeenAt      DateTime  @default(now())
-  status          String    @default("active") // active, resolved, archived
+  importanceScore Int       @default(5)
+  articleCount    Int       @default(1)
+  status          String    @default("active") // active, closed, archived
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   articles        Article[]
   rumors          Rumor[]
-
-  @@index([importanceScore])
-  @@index([lastSeenAt])
+  @@schema("niopdc_app")
 }
 
 model ArticleAnalysis {
   id                  String   @id @default(uuid())
   articleId           String   @unique
-  importanceScore     Float    @default(5.0)
-  mediaValueScore     Float    @default(5.0)
-  publicInterestScore Float    @default(5.0)
-  crisisScore         Float    @default(1.0)
+  importanceScore     Int      @default(5) // 1 - 10
+  mediaValueScore     Int      @default(5) // 1 - 10
+  publicInterestScore Int      @default(5) // 1 - 10
+  crisisScore         Int      @default(1) // 1 - 10
   sentiment           String   @default("neutral") // positive, neutral, negative
   topics              String   @default("[]") // JSON string
   entities            String   @default("[]") // JSON string
@@ -135,55 +128,50 @@ model ArticleAnalysis {
   isRumorPotential    Boolean  @default(false)
   analyzedAt          DateTime @default(now())
   article             Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@index([sentiment])
-  @@index([crisisScore])
+  @@schema("niopdc_app")
 }
 
 model Rumor {
-  id             String    @id @default(uuid())
-  eventId        String?
-  claim          String
-  sourceUrl      String?
-  riskLevel      String    @default("medium") // low, medium, high, critical
-  debunkStatus   String    @default("investigating") // investigating, debunked, confirmed, ignored
-  suggestedAction String?
-  firstSeenAt    DateTime  @default(now())
-  lastSeenAt     DateTime  @default(now())
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  relatedEvent   Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
-
-  @@index([riskLevel])
-  @@index([debunkStatus])
+  id             String   @id @default(uuid())
+  title          String
+  description    String
+  firstSeenAt    DateTime @default(now())
+  source         String
+  status         String   @default("potential") // potential, needs_review, confirmed, rejected
+  riskLevel      String   @default("medium") // low, medium, high, critical
+  confidence     Int      @default(50) // 1-100
+  relatedEventId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  relatedEvent   Event?   @relation(fields: [relatedEventId], references: [id], onDelete: SetNull)
+  @@schema("niopdc_app")
 }
 
 model FactCheck {
-  id          String   @id @default(uuid())
-  articleId   String
-  claim       String
-  status      String   @default("FALSE") // TRUE, FALSE, MISLEADING, UNVERIFIED
-  confidence  Int      @default(80)
-  evidence    String
-  checkedAt   DateTime @default(now())
-  checkedBy   String   @default("AI_ASSISTED")
-  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  articleId  String?
+  claim      String
+  status     String   @default("UNVERIFIED") // UNVERIFIED, PENDING_REVIEW, VERIFIED, DISPUTED, FALSE, TRUE
+  confidence Int      @default(50) // 1 - 100
+  evidence   String
+  checkedAt  DateTime @default(now())
+  checkedBy  String?  @default("AI Assisted System")
+  article    Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  @@schema("niopdc_app")
 }
 
 model CollectionRun {
   id             String    @id @default(uuid())
-  sourceId       String
+  sourceId       String?
   startedAt      DateTime  @default(now())
   finishedAt     DateTime?
-  status         String    @default("running") // running, success, failed
+  status         String    @default("running") // running, success, partial, failed
   fetchedCount   Int       @default(0)
   newCount       Int       @default(0)
   duplicateCount Int       @default(0)
   errorMessage   String?
-  source         Source    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-
-  @@index([sourceId])
-  @@index([startedAt])
+  source         Source?   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  @@schema("niopdc_app")
 }
 
 model SystemLog {
@@ -193,7 +181,5 @@ model SystemLog {
   message   String
   details   String?
   createdAt DateTime @default(now())
-
-  @@index([level])
-  @@index([createdAt])
+  @@schema("niopdc_app")
 }

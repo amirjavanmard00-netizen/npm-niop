@@ -187,9 +187,15 @@ export const NewsMonitoringView: React.FC<NewsMonitoringViewProps> = ({
               <Flame className="w-5 h-5 text-amber-400" />
               <span>۱۰ خبر برتر و اولویت‌بندی‌شده روز (شرکت ملی پخش و صنعت انرژی)</span>
             </h3>
-            <span className="text-xs text-slate-400 font-mono">آخرین اعتبارسنجی: امروز ساعت ۱۱:۰۰</span>
+            <span className="text-xs text-slate-400 font-mono">رتبه‌بندی بر اساس تحلیل‌های ثبت‌شده</span>
           </div>
 
+          {top10News.length === 0 && (
+            <div className="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-8 text-center">
+              <div className="text-sm font-bold text-slate-200">هنوز خبر واقعی در پایگاه داده ثبت نشده است.</div>
+              <p className="text-xs text-slate-400 mt-2">پس از اتصال سرویس و اجرای پایش منابع، خبرهای دریافت‌شده در این بخش نمایش داده می‌شوند. هیچ خبر نمونه‌ای به‌جای خبر واقعی نمایش داده نمی‌شود.</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-4">
             {top10News.map((news, index) => (
               <div

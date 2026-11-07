@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
                 <span className="text-xs text-slate-400 hidden sm:inline-flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  پایش پیوسته ۳۷ منطقه عملیاتی
+                  پوشش ۳۷ منطقه عملیاتی
                 </span>
               </div>
               <h1 className="text-lg sm:text-xl font-black text-slate-100 mt-0.5 tracking-tight">
@@ -72,9 +72,11 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span className="text-slate-300 font-mono text-[11px]">
-                  SQLite: <strong className="text-amber-400 font-bold">{dbStatus.totalArticles}</strong> خبر
+                  PostgreSQL: <strong className="text-amber-400 font-bold">{dbStatus.totalArticles}</strong> خبر
                 </span>
-                {dbStatus.realArticles > 0 && (
+                {!dbStatus.isHealthy ? (
+                  <span className="text-[10px] bg-rose-950 text-rose-300 border border-rose-800 px-1.5 py-0.2 rounded font-bold">قطع ارتباط</span>
+                ) : dbStatus.realArticles > 0 && (
                   <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-1.5 py-0.2 rounded font-bold">
                     {dbStatus.realArticles} زنده
                   </span>
