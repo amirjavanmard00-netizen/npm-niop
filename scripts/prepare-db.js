@@ -7,7 +7,7 @@ const databaseUrl = process.env.DATABASE_URL || '';
 const isPostgres = databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://');
 const run = (command) => execSync(command, { stdio: 'inherit', env: process.env });
 
-if (process.env.NODE_ENV === 'production' && !isPostgres && process.env.ALLOW_SQLITE_PRODUCTION !== 'true') {
+if ((process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') && !isPostgres && process.env.ALLOW_SQLITE_PRODUCTION !== 'true') {
   console.error('[DB Setup] A PostgreSQL DATABASE_URL is required in production. SQLite is allowed only when ALLOW_SQLITE_PRODUCTION=true (CI/local test).');
   process.exit(1);
 }
