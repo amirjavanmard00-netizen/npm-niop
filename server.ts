@@ -7,6 +7,7 @@ import { GoogleGenAI } from '@google/genai';
 import { apiRouter } from './server/routes';
 import { seedDatabase } from './server/seed';
 import { startScheduler } from './server/scheduler';
+import { requireAuth } from './server/auth';
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ app.use((req, res, next) => {
 });
 
 // CORS configuration for Production
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173').split(',').map(origin => origin.trim()).filter(Boolean);
+const allowedOrigins = (process.env.CORS_ORIGIN || 'https://npm-niop.onrender.com,http://localhost:3000,http://localhost:5173').split(',').map(origin => origin.trim()).filter(Boolean);
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
@@ -49,7 +50,7 @@ function getGenAI(): GoogleGenAI | null {
 }
 
 // Professional energy news rewriting endpoint (هرم وارونه)
-app.post('/api/ai/rewrite', async (req, res) => {
+app.post('/api/ai/rewrite', requireAuth, async (req, res) => {
   try {
     const { rawText } = req.body;
     if (!rawText || typeof rawText !== 'string') {
@@ -132,7 +133,7 @@ app.post('/api/ai/rewrite', async (req, res) => {
 });
 
 // 27-item deep content package generator
-app.post('/api/ai/generate-package', async (req, res) => {
+app.post('/api/ai/generate-package', requireAuth, async (req, res) => {
   try {
     const { topic, context } = req.body;
     const ai = getGenAI();
