@@ -8,14 +8,6 @@ import { SourcesDirectory } from './components/SourcesDirectory';
 import { ReportExportModal } from './components/ReportExportModal';
 
 import { regions37Data } from './data/regionsData';
-import { 
-  top10NewsData as fallbackTop10, 
-  officialAlertsData, 
-  prCampaignsData, 
-  videoSuggestionsData, 
-  keyStatisticsData as fallbackStats 
-} from './data/newsData';
-import { monitoredSourcesData as fallbackSources } from './data/sourcesData';
 import { ContentPackage27, NewsItem, DbArticle, DbSource, DbStats, RegionNews } from './types';
 import { 
   Flame, 
@@ -43,9 +35,7 @@ export default function App() {
   const [isSyncingSourceId, setIsSyncingSourceId] = useState<string | null>(null);
 
   // Active Content Package for 27 items modal/studio
-  const [currentPackage, setCurrentPackage] = useState<ContentPackage27 | null>(
-    fallbackTop10[0].fullPackage || null
-  );
+  const [currentPackage, setCurrentPackage] = useState<ContentPackage27 | null>(null);
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
   const [isGeneratingPackage, setIsGeneratingPackage] = useState(false);
 
@@ -57,24 +47,32 @@ export default function App() {
 
   // Live Refresh State
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [dbConnected, setDbConnected] = useState(false);
   const [refreshNotification, setRefreshNotification] = useState<string | null>(null);
 
   // Fetch live stats, articles, and sources from backend
   const fetchLiveData = useCallback(async () => {
     try {
-      const [statsRes, articlesRes, sourcesRes, regionsRes] = await Promise.all([
+      const [healthRes, statsRes, articlesRes, sourcesRes, regionsRes] = await Promise.all([
+        fetch('/api/health').then(r => r.ok ? r.json() : null),
         fetch('/api/stats').then(r => r.ok ? r.json() : null),
         fetch('/api/articles?limit=80').then(r => r.ok ? r.json() : null),
         fetch('/api/sources').then(r => r.ok ? r.json() : null),
         fetch('/api/regions').then(r => r.ok ? r.json() : null)
       ]);
 
-      if (statsRes) setDbStats(statsRes);
-      if (articlesRes && articlesRes.items) setDbArticles(articlesRes.items);
-      if (sourcesRes && Array.isArray(sourcesRes)) setDbSources(sourcesRes);
-      if (regionsRes && Array.isArray(regionsRes)) setDbRegions(regionsRes);
+      setDbConnected(Boolean(healthRes?.status === 'ok' && healthRes?.database === 'connected'));
+      setDbStats(statsRes || null);
+      setDbArticles(articlesRes?.items && Array.isArray(articlesRes.items) ? articlesRes.items : []);
+      setDbSources(Array.isArray(sourcesRes) ? sourcesRes : []);
+      setDbRegions(Array.isArray(regionsRes) ? regionsRes : []);
     } catch (err) {
-      console.warn('[Frontend] Could not fetch live database data, using offline fallback', err);
+      setDbConnected(false);
+      setDbStats(null);
+      setDbArticles([]);
+      setDbSources([]);
+      setDbRegions([]);
+      console.warn('[Frontend] Could not fetch live database data', err);
     }
   }, []);
 
@@ -88,7 +86,8 @@ export default function App() {
     setRefreshNotification('در حال ارتباط با درگاه‌ها و مانیتورینگ بلادرنگ منابع خبری...');
     try {
       const res = await fetch('/api/collector/sync', { method: 'POST' });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || data?.details || `HTTP ${res.status}`);
       await fetchLiveData();
 
       const newItemsCount = data?.stats?.totalNew ?? 0;
@@ -180,9 +179,7 @@ export default function App() {
 
   // Filtered news items
   const combinedNewsItems: NewsItem[] = React.useMemo(() => {
-    if (dbArticles.length === 0) {
-      return fallbackTop10;
-    }
+    if (dbArticles.length === 0) return [];
 
     let filtered = dbArticles;
     if (articleFilter === 'real') {
@@ -192,15 +189,20 @@ export default function App() {
     }
 
     const mapped = filtered.map(mapDbToNewsItem);
-    return mapped.length > 0 ? mapped : fallbackTop10;
+    return mapped;
   }, [dbArticles, articleFilter]);
 
   // Combined sources
-  const currentSources = dbSources.length > 0 ? dbSources : fallbackSources;
+  const currentSources = dbSources;
 
-  // Dynamic statistics computed live from SQLite
+  // Dynamic statistics computed from PostgreSQL
   const currentStats = React.useMemo(() => {
-    if (!dbStats) return fallbackStats;
+    if (!dbStats) return [
+      { label: 'اخبار ثبت‌شده', value: '—', trend: 'در انتظار اتصال به پایگاه داده' },
+      { label: 'مناطق تحت پوشش', value: '۳۷ منطقه', trend: 'فهرست مرجع مناطق عملیاتی' },
+      { label: 'منابع پایش', value: `${dbSources.length} منبع`, trend: 'وضعیت پس از اولین پایش مشخص می‌شود' },
+      { label: 'تحلیل احساسات', value: '—', trend: 'پس از دریافت خبر واقعی نمایش داده می‌شود' }
+    ];
     return [
       {
         label: 'مجموع اخبار در پایگاه داده',
@@ -223,7 +225,7 @@ export default function App() {
         trend: dbStats.sentiments.negative > 0 ? `${dbStats.sentiments.negative} مورد هشدار انتقادی` : 'پایش آرامش فضا'
       }
     ];
-  }, [dbStats]);
+  }, [dbStats, dbSources.length]);
 
   const handleOpenNewsPackage = async (news: NewsItem) => {
     if (news.fullPackage) {
@@ -287,9 +289,9 @@ export default function App() {
         onRefreshData={handleRefreshData}
         isRefreshing={isRefreshing}
         dbStatus={{
-          totalArticles: dbStats?.totalArticles ?? fallbackTop10.length,
+          totalArticles: dbStats?.totalArticles ?? 0,
           realArticles: dbStats?.realArticles ?? 0,
-          isHealthy: true,
+          isHealthy: dbConnected,
           isRunning: isRefreshing
         }}
       />
@@ -311,10 +313,10 @@ export default function App() {
             <div className="flex items-center gap-2">
               <Database className="w-4 h-4 text-amber-400" />
               <span className="text-xs font-bold text-slate-200">
-                پایگاه داده زنده SQLite:
+                پایگاه داده PostgreSQL:
               </span>
               <span className="text-xs text-slate-400 font-mono">
-                {dbStats?.totalArticles ?? 151} خبر ثبت‌شده • {dbStats?.realArticles ?? 126} خبر خزش بلادرنگ
+                {dbStats?.totalArticles ?? 0} خبر ثبت‌شده • {dbStats?.realArticles ?? 0} خبر واقعی
               </span>
             </div>
 
@@ -327,7 +329,7 @@ export default function App() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                همه اخبار ({dbStats?.totalArticles ?? 151})
+                همه اخبار ({dbStats?.totalArticles ?? 0})
               </button>
               <button
                 onClick={() => setArticleFilter('real')}
@@ -338,7 +340,7 @@ export default function App() {
                 }`}
               >
                 <Radio className="w-3 h-3 text-emerald-400" />
-                <span>اخبار زنده و خزش‌شده ({dbStats?.realArticles ?? 126})</span>
+                <span>اخبار واقعی و خزش‌شده ({dbStats?.realArticles ?? 0})</span>
               </button>
               <button
                 onClick={() => setArticleFilter('seed')}
@@ -348,7 +350,7 @@ export default function App() {
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                داده‌های پایه ({dbStats?.seedArticles ?? 25})
+                داده‌های نمونه ({dbStats?.seedArticles ?? 0})
               </button>
             </div>
           </div>
@@ -357,9 +359,9 @@ export default function App() {
         {activeTab === 'monitoring' && (
           <NewsMonitoringView
             top10News={combinedNewsItems}
-            alerts={officialAlertsData}
-            campaigns={prCampaignsData}
-            videos={videoSuggestionsData}
+            alerts={[]}
+            campaigns={[]}
+            videos={[]}
             stats={currentStats}
             onOpenContentPackage={handleOpenNewsPackage}
             onSendToRewriter={handleSendToRewriter}
@@ -368,7 +370,33 @@ export default function App() {
 
         {activeTab === 'regions' && (
           <RegionsTable
-            regions={regions37Data}
+            regions={dbRegions.length ? dbRegions.map((region: any) => {
+              const count = region._count?.articles ?? 0;
+              const latest = region.articles?.[0];
+              return {
+                id: String(region.id),
+                name: region.name,
+                newsCount7Days: count,
+                topStory: latest?.title || 'هنوز خبر واقعی برای این منطقه ثبت نشده است',
+                publishDate: latest?.publishedAt ? calculateTimeAgo(latest.publishedAt) : 'بدون خبر ثبت‌شده',
+                importance: 0,
+                status: count > 0 ? 'active_7d' : 'no_recent',
+                category: 'supply',
+                link: latest?.url || '',
+                summary: latest?.summary || 'در انتظار دریافت خبر از منابع پایش',
+                keyDetails: []
+              };
+            }) : regions37Data.map(region => ({
+              ...region,
+              newsCount7Days: 0,
+              topStory: 'هنوز خبر واقعی برای این منطقه ثبت نشده است',
+              publishDate: 'بدون خبر ثبت‌شده',
+              importance: 0,
+              status: 'no_recent' as const,
+              link: '',
+              summary: 'در انتظار دریافت خبر از منابع پایش',
+              keyDetails: []
+            }))}
             onSelectRegionForRewrite={handleSendToRewriter}
             onOpenContentPackage={(title, summary) => {
               handleGenerateCustomPackage(title, summary);
@@ -490,7 +518,7 @@ export default function App() {
             <span>•</span>
             <span>سازگار با دستورالعمل‌های ژورنالیسم انرژی و هرم وارونه</span>
             <span>•</span>
-            <span className="text-amber-400/90 font-mono">اتاق خبر دیجیتال نسخه ۴.۰ • متصل به بانک اطلاعات SQLite</span>
+            <span className="text-amber-400/90 font-mono">اتاق خبر دیجیتال • پایگاه داده PostgreSQL</span>
           </div>
         </div>
       </footer>
