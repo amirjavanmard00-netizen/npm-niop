@@ -7,7 +7,6 @@ import { GoogleGenAI } from '@google/genai';
 import { apiRouter } from './server/routes';
 import { seedDatabase } from './server/seed';
 import { startScheduler } from './server/scheduler';
-import { requireAuth } from './server/auth';
 
 dotenv.config();
 
@@ -48,9 +47,6 @@ function getGenAI(): GoogleGenAI | null {
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
 }
-
-// AI endpoints are protected too; they can consume paid API quota.
-app.use('/api/ai', requireAuth);
 
 // Professional energy news rewriting endpoint (هرم وارونه)
 app.post('/api/ai/rewrite', async (req, res) => {
