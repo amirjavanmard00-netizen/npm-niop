@@ -7,6 +7,7 @@ import { GoogleGenAI } from '@google/genai';
 import { apiRouter } from './server/routes';
 import { seedDatabase } from './server/seed';
 import { startScheduler } from './server/scheduler';
+import { requireAuth } from './server/auth';
 
 dotenv.config();
 
@@ -18,21 +19,25 @@ app.disable('x-powered-by');
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   next();
 });
 
 // CORS configuration for Production
-const allowedOrigins = process.env.CORS_ORIGIN || '*';
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:5173').split(',').map(origin => origin.trim()).filter(Boolean);
 app.use(cors({
-  origin: allowedOrigins === '*' ? true : allowedOrigins.split(',').map(s => s.trim()),
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origin not allowed by CORS'));
+  },
   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: false
 }));
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 // Mount database and media monitoring API routes
 app.use('/api', apiRouter);
@@ -43,6 +48,9 @@ function getGenAI(): GoogleGenAI | null {
   if (!apiKey) return null;
   return new GoogleGenAI({ apiKey });
 }
+
+// AI endpoints are protected too; they can consume paid API quota.
+app.use('/api/ai', requireAuth);
 
 // Professional energy news rewriting endpoint (هرم وارونه)
 app.post('/api/ai/rewrite', async (req, res) => {
@@ -123,7 +131,6 @@ app.post('/api/ai/rewrite', async (req, res) => {
     console.error('Error in /api/ai/rewrite:', error);
     res.status(500).json({
       error: 'خطا در پردازش خبر',
-      details: error?.message || String(error)
     });
   }
 });
@@ -222,7 +229,7 @@ app.post('/api/ai/generate-package', async (req, res) => {
     }
   } catch (err: any) {
     console.error('Error in /api/ai/generate-package:', err);
-    res.status(500).json({ error: 'خطا در تولید بسته محتوایی', details: err?.message || String(err) });
+    res.status(500).json({ error: 'خطا در تولید بسته محتوایی' });
   }
 });
 
