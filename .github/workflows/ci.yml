@@ -41,6 +41,12 @@ jobs:
         run: |
           DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres npx prisma validate --schema prisma/schema.postgresql.prisma
           DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres npx prisma generate --schema prisma/schema.postgresql.prisma
+      - name: Verify demo content is not seeded
+        run: |
+          if grep -Eq 'top10NewsData|isSeed: true|DATABASE_SEEDED' server/seed.ts; then
+            echo 'Synthetic news content must not be inserted into the live database.'
+            exit 1
+          fi
       - name: Type check
         run: npm run lint
       - name: Production build
