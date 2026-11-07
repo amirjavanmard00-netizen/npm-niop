@@ -63,7 +63,7 @@ export async function seedDatabase(_force = false) {
       create: {
         id: src.id,
         ...data,
-        status: src.status === 'active' ? 'healthy' : 'warning'
+        status: 'warning'
       }
     });
   }
