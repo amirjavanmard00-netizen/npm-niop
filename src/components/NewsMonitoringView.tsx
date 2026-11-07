@@ -187,7 +187,7 @@ export const NewsMonitoringView: React.FC<NewsMonitoringViewProps> = ({
               <Flame className="w-5 h-5 text-amber-400" />
               <span>۱۰ خبر برتر و اولویت‌بندی‌شده روز (شرکت ملی پخش و صنعت انرژی)</span>
             </h3>
-            <span className="text-xs text-slate-400 font-mono">آخرین اعتبارسنجی: امروز ساعت ۱۱:۰۰</span>
+            <span className="text-xs text-slate-400 font-mono">رتبه‌بندی بر اساس تحلیل‌های ثبت‌شده</span>
           </div>
 
           {top10News.length === 0 && (
