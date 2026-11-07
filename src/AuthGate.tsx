@@ -6,6 +6,26 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const TOKEN_KEY = 'niopdc_access_token';
 
+// Install the API bearer-token bridge at module load, before React mounts.
+// This prevents the dashboard's first child useEffect requests from racing
+// ahead of an effect-based fetch override in AuthGate.
+if (typeof window !== 'undefined' && !(window as any).__niopdcFetchBridgeInstalled) {
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    if (url.startsWith('/api/')) {
+      const headers = new Headers(init?.headers);
+      const token = sessionStorage.getItem(TOKEN_KEY);
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+      const response = await originalFetch(input, { ...init, headers });
+      if (response.status === 401) window.dispatchEvent(new Event('niopdc-auth-expired'));
+      return response;
+    }
+    return originalFetch(input, init);
+  };
+  (window as any).__niopdcFetchBridgeInstalled = true;
+}
+
 async function getUser(token: string): Promise<SessionUser | null> {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
   const response = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/user`, {
@@ -24,20 +44,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const originalFetch = window.fetch.bind(window);
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-      if (url.startsWith('/api/')) {
-        const headers = new Headers(init?.headers);
-        const token = sessionStorage.getItem(TOKEN_KEY);
-        if (token) headers.set('Authorization', `Bearer ${token}`);
-        const response = await originalFetch(input, { ...init, headers });
-        if (response.status === 401) window.dispatchEvent(new Event('niopdc-auth-expired'));
-        return response;
-      }
-      return originalFetch(input, init);
-    };
-
     const onExpired = () => {
       sessionStorage.removeItem(TOKEN_KEY);
       setUser(null);
