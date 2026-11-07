@@ -7,7 +7,7 @@ let lastRunTime: Date | null = null;
 let lastRunStats: any = null;
 
 export function getSchedulerStatus() {
-  const intervalMinutes = parseInt(process.env.NEWS_POLL_INTERVAL_MINUTES || '10', 10);
+  const intervalMinutes = parseInt(process.env.NEWS_POLL_INTERVAL_MINUTES || '30', 10);
   return {
     isActive: timer !== null,
     isRunning,
