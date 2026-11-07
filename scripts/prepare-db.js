@@ -1,32 +1,42 @@
-import fs from 'fs';
-import path from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const schemaPath = path.join(process.cwd(), 'prisma', 'schema.prisma');
-const dbUrl = process.env.DATABASE_URL || 'file:./prisma/dev.db';
+const databaseUrl = process.env.DATABASE_URL || '';
+const isPostgres = databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://');
+const run = (command) => execSync(command, { stdio: 'inherit', env: process.env });
 
-console.log(`[DB Setup] Inspecting DATABASE_URL: ${dbUrl.startsWith('file:') ? 'SQLite' : 'PostgreSQL/Remote'}`);
-
-let content = fs.readFileSync(schemaPath, 'utf8');
-
-if (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://')) {
-  console.log('[DB Setup] Configuring Prisma for PostgreSQL...');
-  content = content.replace(/provider\s*=\s*"sqlite"/g, 'provider = "postgresql"');
-} else {
-  console.log('[DB Setup] Configuring Prisma for SQLite...');
-  content = content.replace(/provider\s*=\s*"postgresql"/g, 'provider = "sqlite"');
+if (!databaseUrl && process.env.NODE_ENV === 'production') {
+  console.error('[DB Setup] DATABASE_URL is required in production. Refusing to build with an ephemeral SQLite database.');
+  process.exit(1);
 }
 
-fs.writeFileSync(schemaPath, content, 'utf8');
-
-try {
-  console.log('[DB Setup] Running prisma generate...');
-  execSync('npx prisma generate', { stdio: 'inherit' });
-  console.log('[DB Setup] Prisma Client ready.');
-} catch (err) {
-  console.error('[DB Setup] Failed to generate Prisma Client', err);
-  process.exit(1);
+if (isPostgres) {
+  const schema = 'prisma/schema.postgresql.prisma';
+  console.log('[DB Setup] Preparing isolated PostgreSQL schema: niopdc_app');
+  try {
+    run(`npx prisma generate --schema ${schema}`);
+    if (process.env.PRISMA_DB_PUSH !== 'false') {
+      console.log('[DB Setup] Applying the Prisma model to the isolated niopdc_app schema (non-destructive mode)...');
+      run(`npx prisma db push --schema ${schema} --skip-generate`);
+    }
+    console.log('[DB Setup] PostgreSQL Prisma Client and schema are ready.');
+  } catch (error) {
+    console.error('[DB Setup] PostgreSQL preparation failed. Check DATABASE_URL and direct database connectivity.');
+    process.exit(1);
+  }
+} else {
+  if (databaseUrl && !databaseUrl.startsWith('file:')) {
+    console.error('[DB Setup] Unsupported DATABASE_URL. Use a PostgreSQL URL or a file: SQLite URL.');
+    process.exit(1);
+  }
+  console.log('[DB Setup] Preparing local SQLite Prisma Client.');
+  try {
+    run('npx prisma generate --schema prisma/schema.prisma');
+    console.log('[DB Setup] SQLite Prisma Client is ready.');
+  } catch (error) {
+    console.error('[DB Setup] SQLite Prisma generation failed.', error);
+    process.exit(1);
+  }
 }
