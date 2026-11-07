@@ -18,15 +18,14 @@ if (isPostgres) {
   try {
     run(`npx prisma generate --schema ${schema}`);
     if (process.env.PRISMA_DB_PUSH === 'true') {
-      console.log('[DB Setup] Applying the Prisma model to the isolated niopdc_app schema (non-destructive mode)...');
+      console.log('[DB Setup] Explicit PRISMA_DB_PUSH=true: syncing the isolated niopdc_app schema.');
       run(`npx prisma db push --schema ${schema} --skip-generate`);
-    }
     } else {
-      console.log('[DB Setup] Automatic db push is disabled; using the already-provisioned niopdc_app schema.');
+      console.log('[DB Setup] Automatic db push is disabled; using the provisioned niopdc_app schema.');
     }
-    console.log('[DB Setup] PostgreSQL Prisma Client and schema are ready.');
+    console.log('[DB Setup] PostgreSQL Prisma Client is ready.');
   } catch (error) {
-    console.error('[DB Setup] PostgreSQL preparation failed. Check DATABASE_URL and direct database connectivity.');
+    console.error('[DB Setup] PostgreSQL preparation failed. Check DATABASE_URL and Prisma schema configuration.');
     process.exit(1);
   }
 } else {
