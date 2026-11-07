@@ -192,8 +192,39 @@ export default function App() {
     return mapped;
   }, [dbArticles, articleFilter]);
 
-  // Combined sources
+  // Combined reference data from PostgreSQL; static files provide names only, never fake news.
   const currentSources = dbSources;
+  const currentRegions: RegionNews[] = dbRegions.length
+    ? dbRegions.map((region: any): RegionNews => {
+        const count = region._count?.articles ?? 0;
+        const latest = region.articles?.[0];
+        return {
+          id: String(region.id),
+          name: region.name,
+          newsCount7Days: count,
+          topStory: latest?.title || 'هنوز خبر واقعی برای این منطقه ثبت نشده است',
+          publishDate: latest?.publishedAt ? calculateTimeAgo(latest.publishedAt) : 'بدون خبر ثبت‌شده',
+          importance: 0,
+          status: count > 0 ? 'active_7d' : 'no_recent',
+          category: 'supply',
+          link: latest?.url || '',
+          summary: latest?.summary || 'در انتظار دریافت خبر از منابع پایش',
+          keyDetails: []
+        };
+      })
+    : regions37Data.map((region): RegionNews => ({
+        id: region.id,
+        name: region.name,
+        newsCount7Days: 0,
+        topStory: 'هنوز خبر واقعی برای این منطقه ثبت نشده است',
+        publishDate: 'بدون خبر ثبت‌شده',
+        importance: 0,
+        status: 'no_recent',
+        category: 'supply',
+        link: '',
+        summary: 'در انتظار دریافت خبر از منابع پایش',
+        keyDetails: []
+      }));
 
   // Dynamic statistics computed from PostgreSQL
   const currentStats = React.useMemo(() => {
@@ -212,10 +243,10 @@ export default function App() {
       {
         label: 'مناطق ۳۷گانه تحت پوشش',
         value: '۳۷ منطقه فعال',
-        trend: 'پوشش کامل تراز انرژی کشور'
+        trend: 'فهرست مناطق عملیاتی تعریف‌شده'
       },
       {
-        label: 'رصد شبانه‌روزی مراجع',
+        label: 'منابع پایش',
         value: `${dbStats.activeSources} منبع فعال`,
         trend: `${dbStats.healthySources} منبع با پاسخ برخط`
       },
@@ -370,33 +401,7 @@ export default function App() {
 
         {activeTab === 'regions' && (
           <RegionsTable
-            regions={dbRegions.length ? dbRegions.map((region: any) => {
-              const count = region._count?.articles ?? 0;
-              const latest = region.articles?.[0];
-              return {
-                id: String(region.id),
-                name: region.name,
-                newsCount7Days: count,
-                topStory: latest?.title || 'هنوز خبر واقعی برای این منطقه ثبت نشده است',
-                publishDate: latest?.publishedAt ? calculateTimeAgo(latest.publishedAt) : 'بدون خبر ثبت‌شده',
-                importance: 0,
-                status: count > 0 ? 'active_7d' : 'no_recent',
-                category: 'supply',
-                link: latest?.url || '',
-                summary: latest?.summary || 'در انتظار دریافت خبر از منابع پایش',
-                keyDetails: []
-              };
-            }) : regions37Data.map(region => ({
-              ...region,
-              newsCount7Days: 0,
-              topStory: 'هنوز خبر واقعی برای این منطقه ثبت نشده است',
-              publishDate: 'بدون خبر ثبت‌شده',
-              importance: 0,
-              status: 'no_recent' as const,
-              link: '',
-              summary: 'در انتظار دریافت خبر از منابع پایش',
-              keyDetails: []
-            }))}
+            regions={currentRegions}
             onSelectRegionForRewrite={handleSendToRewriter}
             onOpenContentPackage={(title, summary) => {
               handleGenerateCustomPackage(title, summary);
@@ -499,8 +504,8 @@ export default function App() {
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         top10News={combinedNewsItems}
-        regions={regions37Data}
-        alerts={officialAlertsData}
+        regions={currentRegions}
+        alerts={[]}
       />
 
       {/* Official Footer */}
@@ -514,7 +519,7 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-[11px] text-slate-500">
-            <span>پایش شبانه‌روزی ۳۷ منطقه عملیاتی</span>
+            <span>پوشش داده‌های ۳۷ منطقه عملیاتی</span>
             <span>•</span>
             <span>سازگار با دستورالعمل‌های ژورنالیسم انرژی و هرم وارونه</span>
             <span>•</span>
