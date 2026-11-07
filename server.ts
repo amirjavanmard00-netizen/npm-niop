@@ -8,6 +8,7 @@ import { apiRouter } from './server/routes';
 import { seedDatabase } from './server/seed';
 import { startScheduler } from './server/scheduler';
 import { requireAuth } from './server/auth';
+import { prisma } from './server/db';
 
 dotenv.config();
 
@@ -189,11 +190,20 @@ app.post('/api/ai/generate-package', requireAuth, async (req, res) => {
 
 // Vite middleware / static files
 async function start() {
+  // Do not report a live service when its required database is unavailable.
+  // Connect and verify PostgreSQL before seeding, starting the scheduler, or
+  // accepting HTTP traffic.
   try {
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('[DB] Database connection verified.');
     await seedDatabase();
     startScheduler();
   } catch (err) {
-    console.error('[Server init warning]', err);
+    console.error('[Fatal startup] Database initialization failed; HTTP server will not start.', err);
+    await prisma.$disconnect().catch(() => undefined);
+    process.exit(1);
+    return;
   }
 
   if (process.env.NODE_ENV !== 'production') {
