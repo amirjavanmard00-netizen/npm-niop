@@ -11,7 +11,8 @@ const KNOWN_RSS_MAP: Record<string, string> = {
   fars: 'https://www.farsnews.ir/rss',
   energypress: 'https://energypress.ir/feed/',
   donya_eqtesad: 'https://donya-e-eqtesad.com/fa/rss/all',
-  mop: 'https://www.mop.ir/rss'
+  mop: 'https://www.mop.ir/rss',
+  oilprice: 'https://oilprice.com/rss/main'
 };
 
 /**
