@@ -91,10 +91,13 @@ export default function App() {
       await fetchLiveData();
 
       const newItemsCount = data?.stats?.totalNew ?? 0;
+      const failedSources = (data?.stats?.results || []).filter((item: any) => item.status === 'failed').length;
       setRefreshNotification(
-        newItemsCount > 0 
-          ? `پایش بلادرنگ با موفقیت انجام شد (${newItemsCount} خبر و رویداد جدید به پایگاه داده اضافه شد).`
-          : 'پایش بلادرنگ با موفقیت انجام شد (تمامی منابع پالایش و به‌روزرسانی شدند).'
+        failedSources > 0
+          ? `پایش پایان یافت؛ ${failedSources} منبع با خطا مواجه شد و ${newItemsCount} خبر جدید ثبت شد.`
+          : newItemsCount > 0
+          ? `پایش موفق بود؛ ${newItemsCount} خبر جدید در پایگاه داده ثبت شد.`
+          : 'پایش پایان یافت؛ خبر جدیدی پیدا نشد. وضعیت هر منبع در فهرست منابع قابل مشاهده است.'
       );
     } catch (err) {
       setRefreshNotification('خطا در ارتباط با سرور زمان‌بندی خزش اخبار.');
