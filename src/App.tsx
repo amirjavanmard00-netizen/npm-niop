@@ -142,7 +142,7 @@ export default function App() {
 
   // Helper to map DB Article to NewsItem
   const mapDbToNewsItem = (art: DbArticle): NewsItem => {
-    let keywords: string[] = ['فرآورده‌های نفتی', 'انرژی'];
+    let keywords: string[] = [];
     if (art.analysis?.keywords) {
       try {
         keywords = JSON.parse(art.analysis.keywords);
@@ -152,9 +152,9 @@ export default function App() {
     }
 
     const isBreaking = (art.analysis?.crisisScore || 0) >= 6;
-    const importance = art.analysis?.importanceScore || 7;
-    const appeal = art.analysis?.mediaValueScore || 7;
-    const viral = (art.analysis?.publicInterestScore || 7) * 10;
+    const importance = art.analysis?.importanceScore ?? 0;
+    const appeal = art.analysis?.mediaValueScore ?? 0;
+    const viral = (art.analysis?.publicInterestScore ?? 0) * 10;
 
     return {
       id: art.id,
@@ -170,8 +170,8 @@ export default function App() {
       timeAgo: calculateTimeAgo(art.publishedAt),
       source: art.source?.name || 'منبع مانیتورینگ',
       sourceUrl: art.url,
-      impactOnPeople: art.analysis?.summary || 'اطلاع‌رسانی مستقیم به عموم مصرف‌کنندگان و شهروندان.',
-      impactOnIndustry: 'تأثیر بر مدیریت زنجیره تأمین و بهینه‌سازی جریان سوخت کشور.',
+      impactOnPeople: art.analysis?.summary || 'در انتظار تکمیل تحلیل این خبر.',
+      impactOnIndustry: 'پس از تحلیل تخصصی خبر مشخص می‌شود.',
       tags: keywords.slice(0, 4),
       fullPackage: undefined
     };
@@ -253,7 +253,7 @@ export default function App() {
       {
         label: 'شاخص سلامت افکار عمومی',
         value: `${dbStats.sentiments.positive} مثبت / ${dbStats.sentiments.neutral} خنثی`,
-        trend: dbStats.sentiments.negative > 0 ? `${dbStats.sentiments.negative} مورد هشدار انتقادی` : 'پایش آرامش فضا'
+        trend: dbStats.sentiments.negative > 0 ? `${dbStats.sentiments.negative} مورد هشدار انتقادی`  : 'هنوز تحلیل منفی ثبت نشده است'
       }
     ];
   }, [dbStats, dbSources.length]);
