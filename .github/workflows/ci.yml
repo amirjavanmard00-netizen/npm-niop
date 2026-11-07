@@ -52,6 +52,8 @@ jobs:
         run: npm run lint
       - name: Production build
         run: npm run build
+      - name: Docker image build
+        run: docker build --tag niopdc-ci:latest .
       - name: Upload reconciled lockfile
         if: always()
         uses: actions/upload-artifact@v4
