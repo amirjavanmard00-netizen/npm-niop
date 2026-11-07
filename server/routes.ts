@@ -310,13 +310,20 @@ apiRouter.get('/collector/status', (req, res) => {
 // 7. Regions API (37 operational regions)
 apiRouter.get('/regions', async (req, res) => {
   try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const regions = await prisma.region.findMany({
       include: {
-        _count: { select: { articles: true, sources: true } },
+        _count: {
+          select: {
+            articles: { where: { publishedAt: { gte: sevenDaysAgo } } },
+            sources: true
+          }
+        },
         articles: {
+          where: { publishedAt: { gte: sevenDaysAgo } },
           take: 3,
           orderBy: { publishedAt: 'desc' },
-          select: { id: true, title: true, publishedAt: true, summary: true }
+          select: { id: true, title: true, publishedAt: true, summary: true, url: true }
         }
       },
       orderBy: { name: 'asc' }
