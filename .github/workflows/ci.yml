@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 20
     env:
       NODE_ENV: production
+      ALLOW_SQLITE_PRODUCTION: 'true'
       DATABASE_URL: file:./prisma/ci.db
       SUPABASE_URL: https://example.supabase.co
       SUPABASE_ANON_KEY: ci-placeholder-anon-key
